@@ -8,7 +8,7 @@
   </head>
   <body>
     <h1>forecasty.app</h1>
-    <p class="tag">A tiny browser forecasting tool (linear forecast)</p>
+    <p class="tag">A tiny browser forecasting tool</p>
 
     <main class="container">
       <section class="card">
@@ -48,7 +48,7 @@
         <h2>Forecast</h2>
         <div class="row">
           <label for="horizon">Horizon (months)</label>
-          <input id="horizon" type="number" min="1" value="6" />
+          <input id="horizon" type="number" min="1" value="12" />
         </div>
         <div class="controls">
           <button id="forecast-btn">Forecast</button>
@@ -56,6 +56,28 @@
 
         <div id="forecast-output"></div>
         <canvas id="chart" width="700" height="300"></canvas>
+        <div class="algorithms-card card">
+          <button id="alg-toggle" class="alg-btn">Choose algorithms</button>
+          <div id="alg-panel" class="alg-panel hidden">
+            <label
+              ><input type="checkbox" id="alg-linear" checked /> Linear
+              (OLS)</label
+            >
+            <label
+              ><input type="checkbox" id="alg-ma" /> Moving average
+              <input
+                id="ma-window"
+                type="number"
+                min="1"
+                value="3"
+                class="small-input"
+            /></label>
+            <label <label><input type="checkbox" id="alg-naive" /> Flat</label>
+            <div class="controls">
+              <button id="alg-apply">Apply</button>
+            </div>
+          </div>
+        </div>
       </section>
 
       <footer>
@@ -66,6 +88,6 @@
       </footer>
     </main>
 
-    <script src="script.js"></script>
+    <script type="module" src="script.js"></script>
   </body>
 </html>

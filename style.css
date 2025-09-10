@@ -1,7 +1,6 @@
 body {
   font-family: sans-serif;
   padding: 2rem;
-  max-width: 800px;
   margin: auto;
 }
 
@@ -31,8 +30,10 @@ body {
   padding: 28px;
 }
 .container {
-  max-width: 980px;
-  margin: 0 auto;
+  /* stretch to full width of the page while keeping body padding */
+  width: 100%;
+  max-width: none;
+  margin: 0;
 }
 header {
   margin-bottom: 18px;
@@ -73,6 +74,11 @@ input[type="number"] {
   display: flex;
   gap: 8px;
 }
+
+/* allow controls to wrap on small screens so buttons don't overflow */
+.controls {
+  flex-wrap: wrap;
+}
 button {
   background: var(--accent);
   color: #fff;
@@ -91,6 +97,11 @@ table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 8px;
+}
+/* horizontal scroll if table is too wide on small screens */
+table {
+  display: block;
+  overflow-x: auto;
 }
 th,
 td {
@@ -112,4 +123,39 @@ footer {
   .row label {
     min-width: 0;
   }
+}
+
+/* Make chart canvas fluid to its container */
+#chart {
+  width: 100% !important;
+  height: auto !important;
+  display: block;
+}
+
+.card canvas {
+  max-width: 100%;
+  height: auto !important;
+}
+
+/* algorithms panel */
+.algorithms-card {
+  margin-top: 10px;
+}
+.alg-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.alg-panel.hidden {
+  display: none;
+}
+.alg-btn {
+  background: #10b981;
+}
+.small-input {
+  width: 60px;
+  margin-left: 8px;
 }
