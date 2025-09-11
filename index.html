@@ -2,125 +2,120 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Forecasty</title>
     <link rel="stylesheet" href="style.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
   <body>
-    <header class="app-header">
-      <div class="header-left">
-        <h1>Forecasty</h1>
-      </div>
-      <div class="header-right">
-        <button
-          class="square-btn"
-          id="btn-1"
-          aria-label="Settings"
-          title="Settings"
-        >
-          <img
-            src="icons/gearshape@2x.png"
-            alt="Settings"
-            width="40"
-            height="40"
-            color="gray"
-          />
-        </button>
-        <button class="square-btn" id="btn-2" aria-label="Help" title="Help">
-          <img
-            src="icons/questionmark.circle@2x.png"
-            alt="Help"
-            width="40"
-            height="40"
-          />
-        </button>
-      </div>
-    </header>
-
-    <main class="container">
-      <div class="layout">
-        <div class="left-col">
-          <section class="card" id="data-section">
-            <h2>Data</h2>
-            <div id="summary"></div>
-            <form id="entry-form">
-              <table id="data-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Value</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody id="input-tbody">
-                  <tr>
-                    <td>
-                      <input id="date" type="date" required />
-                    </td>
-                    <td>
-                      <input id="value" type="number" step="any" required />
-                    </td>
-                    <td>
-                      <button type="submit" id="add-btn" class="btn-add">
-                        Add
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-                <tbody id="data-tbody"></tbody>
-              </table>
-            </form>
-          </section>
-          <section class="card" id="algorithms-section">
-            <h2>Algorithms</h2>
-            <div class="row algorithms-list">
-              <label
-                ><input type="checkbox" id="alg-linear" checked /> Linear
-                (OLS)</label
-              >
-            </div>
-            <div class="row algorithms-list">
-              <label
-                ><input type="checkbox" id="alg-ma" /> Moving average</label
-              >
-              <input
-                id="ma-window"
-                type="number"
-                min="1"
-                value="3"
-                class="small-input"
-              />
-            </div>
-            <div class="row algorithms-list">
-              <label><input type="checkbox" id="alg-naive" /> Flat</label>
-            </div>
-          </section>
-          <section class="card" id="run-section">
-            <button id="forecast-btn" class="btn-forecast">Run Forecast</button>
-          </section>
+    <div class="container">
+      <header class="header">
+        <div class="header-left">Forecasty</div>
+        <div class="header-right">
+          <button
+            class="square-btn"
+            id="btn-1"
+            aria-label="Settings"
+            title="Settings"
+          >
+            <img
+              src="icons/gearshape@2x.png"
+              alt="Settings"
+              width="28"
+              height="28"
+            />
+          </button>
+          <button class="square-btn" id="btn-2" aria-label="Help" title="Help">
+            <img
+              src="icons/questionmark.circle@2x.png"
+              alt="Help"
+              width="28"
+              height="28"
+            />
+          </button>
         </div>
-        <div class="right-col">
-          <section class="card" id="forecast-section">
+      </header>
+
+      <div class="main-content">
+        <div class="left-panel">
+          <div class="content">
+            <section id="data-section" class="card data-panel">
+              <h2>Data</h2>
+              <div id="summary"></div>
+              <form id="entry-form">
+                <table id="data-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Value</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="input-tbody">
+                    <tr>
+                      <td><input id="date" type="date" required /></td>
+                      <td>
+                        <input id="value" type="number" step="any" required />
+                      </td>
+                      <td>
+                        <button type="submit" id="add-btn" class="btn-add">
+                          Add
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tbody id="data-tbody"></tbody>
+                </table>
+              </form>
+            </section>
+
+            <section id="algorithms-section" class="card algorithms-panel">
+              <h2>Algorithms</h2>
+              <div class="row algorithms-list">
+                <label
+                  ><input type="checkbox" id="alg-linear" checked /> Linear
+                  (OLS)</label
+                >
+              </div>
+              <div class="row algorithms-list">
+                <label
+                  ><input type="checkbox" id="alg-ma" /> Moving average</label
+                >
+                <input
+                  id="ma-window"
+                  type="number"
+                  min="1"
+                  value="3"
+                  class="small-input"
+                />
+              </div>
+              <div class="row algorithms-list">
+                <label><input type="checkbox" id="alg-naive" /> Flat</label>
+              </div>
+            </section>
+            <section id="run-section" class="card run-panel">
+              <button id="forecast-btn" class="btn-forecast">
+                Run Forecast
+              </button>
+            </section>
+          </div>
+        </div>
+
+        <div class="right-panel">
+          <section id="forecast-section" class="card">
             <h2>Forecast</h2>
             <div class="row">
               <label for="horizon">Horizon (months)</label>
               <input id="horizon" type="number" min="1" value="12" />
             </div>
-
             <div id="forecast-output"></div>
             <canvas id="chart" width="700" height="300"></canvas>
-            <!-- algorithms moved to left panel -->
           </section>
         </div>
       </div>
 
-      <footer>
-        <small
-          >Built with a minimal linear regression on time. Data is stored
-          locally in your browser.</small
-        >
-      </footer>
-    </main>
+      <footer class="footer"></footer>
+    </div>
 
     <script type="module" src="script.js"></script>
 
