@@ -1,58 +1,135 @@
-body {
-  font-family: sans-serif;
-  padding: 2rem;
-  margin: auto;
-}
+/* Clean, final stylesheet for forecasty.app
+   - no page vertical scrolling (content scrolls inside cards/modals)
+   - full-height left/right panels
+   - modals edge-to-edge and scrollable internally
+*/
 
-textarea {
-  margin-bottom: 1rem;
-  font-family: monospace;
-}
 :root {
   --bg: #f7fafc;
   --card: #ffffff;
   --muted: #6b7280;
   --accent: #2563eb;
 }
+
 * {
   box-sizing: border-box;
 }
+
 html,
 body {
   height: 100%;
+  margin: 0;
+  overflow: hidden;
 }
+
 body {
+  display: flex;
+  flex-direction: column;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
     Arial;
-  margin: 0;
   background: var(--bg);
   color: #0f172a;
-  padding: 28px;
+  padding: 20px;
 }
-.container {
-  /* stretch to full width of the page while keeping body padding */
+
+/* App header: full-width bar with title on the left and square buttons pinned right */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
-  max-width: none;
+  background: transparent;
+  margin-bottom: 20px;
+}
+.app-header .header-left h1 {
   margin: 0;
+  font-size: 48px;
 }
-header {
-  margin-bottom: 18px;
+.header-right {
+  display: flex;
+  gap: 20px;
+  padding-right: 5px;
 }
-h1 {
-  margin: 0;
-  font-size: 28px;
+.square-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent; /* no colored background; show icon only */
+  color: inherit;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
 }
-.tag {
-  color: var(--muted);
-  margin-top: 6px;
+.square-btn img {
+  display: block;
+  width: 33px;
+  height: 33px;
 }
+
+.container {
+  width: 100%;
+  flex: 1 1 auto; /* fill remaining viewport under header */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* prevent internal scrolling */
+}
+
+.layout {
+  display: flex;
+  gap: 18px;
+  align-items: stretch; /* make children stretch full height */
+  flex: 1 1 auto;
+}
+
+.left-col {
+  /* reduced from 320px to 240px (≈25% narrower) */
+  flex: 0 0 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+  padding-bottom: 110px; /* reserve space so pinned run-section doesn't overlap content */
+}
+.right-col {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
 .card {
   background: var(--card);
   padding: 16px;
   border-radius: 10px;
   box-shadow: 0 1px 3px rgba(2, 6, 23, 0.06);
   margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  /* height: 100%; */
+  overflow: hidden; /* clip overflow; no scrolling per user request */
+  /* position: relative;  */
 }
+
+h1 {
+  margin: 0;
+  font-size: 38px;
+}
+.tag {
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+/* Tighten spacing for section headings inside cards */
+.card h2 {
+  margin: 6px 0 8px 0; /* top, right, bottom, left */
+  padding: 0;
+  font-size: 26px;
+  line-height: 1.2;
+}
+
 .row {
   display: flex;
   gap: 12px;
@@ -63,22 +140,43 @@ h1 {
   min-width: 110px;
   color: var(--muted);
 }
+
+.date-display {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.inline-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.inline-row .field {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+}
+.inline-row .field.action {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-end;
+}
+
 input[type="date"],
 input[type="number"] {
-  flex: 1;
   padding: 8px;
   border: 1px solid #e6edf3;
   border-radius: 6px;
+  width: 120px;
 }
+
 .controls {
   display: flex;
   gap: 8px;
-}
-
-/* allow controls to wrap on small screens so buttons don't overflow */
-.controls {
   flex-wrap: wrap;
 }
+
 button {
   background: var(--accent);
   color: #fff;
@@ -90,18 +188,36 @@ button {
 button[type="button"] {
   background: #64748b;
 }
-button#clear-btn {
-  background: #ef4444;
+
+.btn-add {
+  background: #10b981;
 }
+.btn-forecast {
+  width: 100%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 12px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 700;
+}
+.btn-del {
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 8px;
-}
-/* horizontal scroll if table is too wide on small screens */
-table {
   display: block;
-  overflow-x: auto;
+  overflow-x: hidden;
 }
 th,
 td {
@@ -109,6 +225,7 @@ td {
   text-align: left;
   border-bottom: 1px solid #eef2f7;
 }
+
 footer {
   color: var(--muted);
   font-size: 13px;
@@ -116,6 +233,16 @@ footer {
 }
 
 @media (max-width: 640px) {
+  .layout {
+    display: block;
+  }
+  .left-col,
+  .right-col {
+    width: 100%;
+  }
+  .inline-row {
+    display: block;
+  }
   .row {
     flex-direction: column;
     align-items: flex-start;
@@ -131,31 +258,69 @@ footer {
   height: auto !important;
   display: block;
 }
-
 .card canvas {
   max-width: 100%;
   height: auto !important;
 }
 
-/* algorithms panel */
-.algorithms-card {
-  margin-top: 10px;
+
+/* reserve space inside the left card so its content isn't hidden by the footer */
+
+/* pin the run section card to the bottom of the left column */
+#run-section {
+  position: absolute;
+  bottom: 0px;
+  width: 100%;
+  z-index: 5;
 }
-.alg-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px;
-  border-radius: 8px;
-  background: #f8fafc;
+
+#run-section .btn-forecast {
+  width: 100%;
 }
-.alg-panel.hidden {
-  display: none;
+
+#forecast-section {
+  height: 100%;
 }
-.alg-btn {
-  background: #10b981;
-}
+
+/* algorithms panel (moved into left column; specific card styles removed) */
 .small-input {
   width: 60px;
   margin-left: 8px;
+}
+
+/* Modal styles: edge-to-edge, internal scrolling */
+.modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  background: rgba(2, 6, 23, 0.35);
+  z-index: 60;
+}
+.modal.hidden {
+  display: none;
+}
+.modal-content {
+  background: var(--card);
+  padding: 18px;
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow-y: hidden;
+}
+
+/* hide scrollbars across browsers (visual) */
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+.modal-content h3 {
+  margin-top: 0;
 }

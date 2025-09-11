@@ -2,17 +2,23 @@ document.addEventListener("DOMContentLoaded", () => {
   // Elements
   const form = document.getElementById("entry-form");
   const dateInput = document.getElementById("date");
+  const dateDisplay = document.getElementById("date-display"); // not present in DOM
   const valueInput = document.getElementById("value");
-  const tableBody = document.querySelector("#data-table tbody");
+  const addBtn = document.getElementById("add-btn");
+  // table is now split: input row tbody (#input-tbody) and data rows tbody (#data-tbody)
+  const tableBody = document.getElementById("data-tbody");
   const forecastBtn = document.getElementById("forecast-btn");
   const horizonInput = document.getElementById("horizon");
   const chartCanvas = document.getElementById("chart");
   const summary = document.getElementById("summary");
   const forecastOutput = document.getElementById("forecast-output");
+  // legacy elements (sample/clear/modal) removed from DOM in current layout
   const sampleBtn = document.getElementById("sample-btn");
   const clearBtn = document.getElementById("clear-btn");
   const algToggle = document.getElementById("alg-toggle");
   const algPanel = document.getElementById("alg-panel");
+  const modalAlg = document.getElementById("modal-alg");
+  const modalHelp = document.getElementById("modal-help");
   const algApply = document.getElementById("alg-apply");
   const algLinear = document.getElementById("alg-linear");
   const algMA = document.getElementById("alg-ma");
@@ -37,10 +43,57 @@ document.addEventListener("DOMContentLoaded", () => {
     tableBody.innerHTML = "";
     data.forEach((row, i) => {
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${row.date}</td><td>${row.value}</td><td><button data-i="${i}" class="del">Delete</button></td>`;
+      const displayDate = formatDDMMYY(row.date);
+      // give the delete button a visible red style via class "btn-del"
+      tr.innerHTML = `<td>${displayDate}</td><td>${row.value}</td><td><button data-i="${i}" class="del btn-del">Delete</button></td>`;
       tableBody.appendChild(tr);
     });
     renderSummary();
+    // update the chart to reflect current data (shows actuals even before forecasting)
+    updateChartFromCurrentData();
+  }
+
+  function formatMMYY(dateStr) {
+    // expects ISO-like YYYY-MM-DD, returns MM-YY
+    try {
+      const d = new Date(dateStr);
+      if (Number.isNaN(d.getTime())) return dateStr;
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const yy = String(d.getFullYear()).slice(-2);
+      return `${mm}/${yy}`;
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  function formatDDMMYY(dateStr) {
+    try {
+      const d = new Date(dateStr);
+      if (Number.isNaN(d.getTime())) return dateStr;
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const yy = String(d.getFullYear()).slice(-2);
+      return `${dd}/${mm}/${yy}`;
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  // date-display element not used in current layout; skip updating
+
+  // For testing: when the Add button is pressed, auto-fill date and value with random data
+  if (addBtn && dateInput && valueInput) {
+    addBtn.addEventListener("click", () => {
+      // random value between 0 and 5000 with two decimals
+      const randVal = (Math.random() * 5000).toFixed(2);
+      // random date within the past 365 days
+      const today = new Date();
+      const daysBack = Math.floor(Math.random() * 365);
+      const d = new Date(today.getTime() - daysBack * 24 * 60 * 60 * 1000);
+      const iso = d.toISOString().slice(0, 10);
+      dateInput.value = iso;
+      valueInput.value = randVal;
+    });
   }
 
   function renderSummary() {
@@ -54,8 +107,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       return;
     }
-    const latest = data[data.length - 1];
-    summary.innerHTML = `<strong>Latest</strong>: ${latest.date} — ${latest.value}`;
+    // Hide the latest entry summary — user requested this be removed
+    summary.textContent = "";
   }
 
   // Simple linear regression (x in days since epoch -> y value)
@@ -130,7 +183,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (chart) chart.destroy();
     const actualLabels = data.map((d) => d.date);
     const actualVals = data.map((d) => Number(d.value));
-    const labels = actualLabels.concat(forecastResult.labels);
+    const forecastLabels = forecastResult.labels || [];
+    // format labels as MM-YY for the x axis
+    const labels = actualLabels
+      .map(formatMMYY)
+      .concat(forecastLabels.map(formatMMYY));
     const forecastData = new Array(data.length)
       .fill(null)
       .concat(forecastResult.preds);
@@ -191,10 +248,53 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // algorithm panel toggling
-  algToggle.addEventListener("click", () => {
-    algPanel.classList.toggle("hidden");
+  function initEmptyChart() {
+    const ctx = chartCanvas.getContext("2d");
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+      type: "line",
+      data: { labels: [], datasets: [] },
+      options: {
+        interaction: { mode: "index", intersect: false },
+        scales: { x: { display: true }, y: { display: true } },
+      },
+    });
+  }
+
+  function updateChartFromCurrentData() {
+    const data = loadData();
+    if (!data || data.length === 0) {
+      // show an empty chart
+      initEmptyChart();
+      return;
+    }
+    // draw actuals only (no forecast yet)
+    const res = { labels: [], preds: [] };
+    drawChart(data, res);
+  }
+
+  // algToggle may not exist (algorithms moved into left panel)
+  if (algToggle && modalAlg) {
+    algToggle.addEventListener("click", () =>
+      modalAlg.classList.remove("hidden")
+    );
+  }
+
+  // wire modal close buttons (help modal may still use these)
+  document.querySelectorAll(".modal-close").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      const target = e.target.dataset.target;
+      const el = document.getElementById(target);
+      if (el) el.classList.add("hidden");
+    });
   });
+
+  // example: open help modal via a top action if present
+  const helpBtn = document.getElementById("help-btn");
+  if (helpBtn && modalHelp)
+    helpBtn.addEventListener("click", () =>
+      modalHelp.classList.remove("hidden")
+    );
 
   function computeMA(values, window, steps) {
     // Instead of a simple flat multi-step MA, fit a straight line (OLS)
@@ -239,31 +339,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Holt's linear method (simple double exponential smoothing)
   // (Holt and Log-linear implementations moved to modules)
 
-  algApply.addEventListener("click", () => {
-    // re-run forecast with selected algorithms
-    const data = loadData();
-    if (data.length < 1) return;
-    const horizon = parseInt(horizonInput.value, 10) || 6;
-    const values = data.map((d) => Number(d.value));
-    const res = { labels: [], linear: null, ma: null, naive: null };
-    // reuse existing forecast to get labels
-    const base = forecast(horizon);
-    res.labels = base.labels;
-    if (algLinear.checked) res.linear = { preds: base.preds };
-    if (algMA.checked)
-      res.ma = {
-        window: parseInt(maWindowInput.value, 10) || 3,
-        preds: computeMA(
-          values,
-          parseInt(maWindowInput.value, 10) || 3,
-          horizon
-        ),
-      };
-    if (algNaive.checked) res.naive = { preds: computeNaive(values, horizon) };
-    // holt/log removed
-    forecastOutput.textContent = "";
-    drawChart(data, res);
-  });
+  // algApply/modal removed; algorithms are read directly from checkboxes on forecast
 
   // Handlers
   form.addEventListener("submit", (e) => {
@@ -316,31 +392,35 @@ document.addEventListener("DOMContentLoaded", () => {
     drawChart(data, res);
   });
 
-  sampleBtn.addEventListener("click", () => {
-    // Hardcoded 12-month series trending from ~0 to 5000 (start 2024-09-01)
-    const sample = [
-      { date: "2024-09-01", value: 0 },
-      { date: "2024-10-01", value: 50 },
-      { date: "2024-11-01", value: 150 },
-      { date: "2024-12-01", value: 350 },
-      { date: "2025-01-01", value: 700 },
-      { date: "2025-02-01", value: 1200 },
-      { date: "2025-03-01", value: 1800 },
-      { date: "2025-04-01", value: 2600 },
-      { date: "2025-05-01", value: 3400 },
-      { date: "2025-06-01", value: 4100 },
-      { date: "2025-07-01", value: 4700 },
-      { date: "2025-08-01", value: 5000 },
-    ];
-    saveData(sample);
-    renderTable();
-  });
+  if (sampleBtn) {
+    sampleBtn.addEventListener("click", () => {
+      // Hardcoded 12-month series trending from ~0 to 5000 (start 2024-09-01)
+      const sample = [
+        { date: "2024-09-01", value: 0 },
+        { date: "2024-10-01", value: 50 },
+        { date: "2024-11-01", value: 150 },
+        { date: "2024-12-01", value: 350 },
+        { date: "2025-01-01", value: 700 },
+        { date: "2025-02-01", value: 1200 },
+        { date: "2025-03-01", value: 1800 },
+        { date: "2025-04-01", value: 2600 },
+        { date: "2025-05-01", value: 3400 },
+        { date: "2025-06-01", value: 4100 },
+        { date: "2025-07-01", value: 4700 },
+        { date: "2025-08-01", value: 5000 },
+      ];
+      saveData(sample);
+      renderTable();
+    });
+  }
 
-  clearBtn.addEventListener("click", () => {
-    if (!confirm("Clear all data?")) return;
-    saveData([]);
-    renderTable();
-  });
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      if (!confirm("Clear all data?")) return;
+      saveData([]);
+      renderTable();
+    });
+  }
 
   // init
   renderTable();

@@ -15,14 +15,10 @@ Files
 - `script.js` — app logic, persistence, regression and chart drawing.
 - `style.css` — minimal styles.
 
-How to run
-
-Open `index.html` in any modern browser (double-click or use a local static server).
-
 Notes
 
 - Data is stored in your browser's localStorage under key `forecasty-data`.
-- Forecast is a basic linear trend on time; it is intentionally simple. For serious forecasting use statistical packages or server-side models.
+- Forecasty is a basic linear trend on time; it is intentionally simple.
 
 License
 
