@@ -40,58 +40,109 @@
         <div class="left-panel">
           <div class="content">
             <section id="data-section" class="card data-panel">
-              <h2>Data</h2>
-              <div id="summary"></div>
-              <form id="entry-form">
-                <table id="data-table">
+              <div class="data-fixed">
+                <h2>Data</h2>
+                <div id="summary"></div>
+                <div class="data-actions row">
+                  <button id="paste-btn" class="btn">Paste</button>
+                  <button id="sample-btn" class="btn">Load Sample</button>
+                  <button id="clear-btn" class="btn">Clear</button>
+                </div>
+                <form id="entry-form">
+                  <table id="data-input-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Value</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><input id="date" type="date" required /></td>
+                        <td>
+                          <input id="value" type="number" step="any" required />
+                        </td>
+                        <td>
+                          <button id="add-btn" class="btn-add" type="submit">
+                            Add
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </form>
+
+                <!-- paste area moved to modal (#modal-paste) -->
+              </div>
+
+              <div class="data-list">
+                <table id="data-table-list">
                   <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Value</th>
-                      <th></th>
-                    </tr>
+                    <tr></tr>
                   </thead>
-                  <tbody id="input-tbody">
-                    <tr>
-                      <td><input id="date" type="date" required /></td>
-                      <td>
-                        <input id="value" type="number" step="any" required />
-                      </td>
-                      <td>
-                        <button type="submit" id="add-btn" class="btn-add">
-                          Add
-                        </button>
-                      </td>
-                    </tr>
-                  </tbody>
                   <tbody id="data-tbody"></tbody>
                 </table>
-              </form>
+              </div>
             </section>
 
             <section id="algorithms-section" class="card algorithms-panel">
               <h2>Algorithms</h2>
-              <div class="row algorithms-list">
-                <label
-                  ><input type="checkbox" id="alg-linear" checked /> Linear
-                  (OLS)</label
-                >
-              </div>
-              <div class="row algorithms-list">
-                <label
-                  ><input type="checkbox" id="alg-ma" /> Moving average</label
-                >
-                <input
-                  id="ma-window"
-                  type="number"
-                  min="1"
-                  value="3"
-                  class="small-input"
-                />
-              </div>
-              <div class="row algorithms-list">
-                <label><input type="checkbox" id="alg-naive" /> Flat</label>
-              </div>
+              <table class="alg-table">
+                <tbody>
+                  <tr>
+                    <td>
+                      <label for="alg-linear"
+                        ><input type="checkbox" id="alg-linear" checked />
+                        Linear (OLS)</label
+                      >
+                    </td>
+                    <td class="alg-input"></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <label for="alg-ma"
+                        ><input type="checkbox" id="alg-ma" /> Moving
+                        average</label
+                      >
+                    </td>
+                    <td class="alg-input">
+                      <input
+                        id="ma-window"
+                        type="number"
+                        min="1"
+                        value="3"
+                        class="small-input"
+                      />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <label for="alg-naive"
+                        ><input type="checkbox" id="alg-naive" /> Flat</label
+                      >
+                    </td>
+                    <td class="alg-input"></td>
+                  </tr>
+                  <tr>
+                    <td colspan="2">
+                      <h3 class="horizon-title">Horizon</h3>
+                      <div class="horizon-control">
+                        <input
+                          id="horizon"
+                          type="range"
+                          min="1"
+                          max="36"
+                          value="12"
+                        />
+                        <div class="horizon-display">
+                          <span id="horizon-value">12</span> months
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </section>
             <section id="run-section" class="card run-panel">
               <button id="forecast-btn" class="btn-forecast">
@@ -104,10 +155,7 @@
         <div class="right-panel">
           <section id="forecast-section" class="card">
             <h2>Forecast</h2>
-            <div class="row">
-              <label for="horizon">Horizon (months)</label>
-              <input id="horizon" type="number" min="1" value="12" />
-            </div>
+
             <div id="forecast-output"></div>
             <canvas id="chart" width="700" height="300"></canvas>
           </section>
@@ -129,6 +177,30 @@
         </p>
         <div class="controls">
           <button class="modal-close" data-target="modal-help">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Paste modal -->
+    <div id="modal-paste" class="modal hidden">
+      <div class="modal-content">
+        <h3>Paste data</h3>
+        <p>
+          Paste date and value rows (tab or space separated). Accepted dates:
+          YYYY-MM, YYYY-MM-DD, DD/MM/YYYY.
+        </p>
+        <label for="paste-area">Paste data</label>
+        <textarea
+          id="paste-area"
+          placeholder="2024-09\t39596\n2024-10\t40536"
+          rows="8"
+        ></textarea>
+        <div class="row" style="margin-top: 12px">
+          <button id="import-btn" class="btn-add">Import</button>
+          <button id="clear-paste" class="btn">Clear</button>
+          <div id="import-feedback" style="margin-left: 8px; color: #a00"></div>
+          <div style="flex: 1"></div>
+          <button class="modal-close" data-target="modal-paste">Close</button>
         </div>
       </div>
     </div>

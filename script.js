@@ -81,25 +81,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // date-display element not used in current layout; skip updating
 
-  // For testing: when the Add button is pressed, auto-fill date and value with random data
-  if (addBtn && dateInput && valueInput) {
-    addBtn.addEventListener("click", () => {
-      // random value between 0 and 5000 with two decimals
-      const randVal = (Math.random() * 5000).toFixed(2);
-      // random date within the past 365 days
-      const today = new Date();
-      const daysBack = Math.floor(Math.random() * 365);
-      const d = new Date(today.getTime() - daysBack * 24 * 60 * 60 * 1000);
-      const iso = d.toISOString().slice(0, 10);
-      dateInput.value = iso;
-      valueInput.value = randVal;
-    });
-  }
+  // add button uses the form submit handler (no test auto-fill)
 
   function renderSummary() {
     const data = loadData();
     if (data.length === 0) {
-      summary.textContent = "No data yet";
       forecastOutput.textContent = "";
       if (chart) {
         chart.destroy();
@@ -178,72 +164,170 @@ document.addEventListener("DOMContentLoaded", () => {
     return { preds, labels, slope, intercept, avgIntervalDays };
   }
 
+  // --- Algorithm registry -------------------------------------------------
+  // Each alg implements compute(data, horizon, ctx) -> { preds, labels?, meta? }
+  const ALGORITHMS = [
+    {
+      id: "linear",
+      label: "Linear (OLS)",
+      checkboxId: "alg-linear",
+      compute: (data, horizon, ctx) => {
+        // perform regression using real time (days since epoch) as x so slope is
+        // value-per-day and forecasts line up correctly on the time-scaled chart
+        const points = data
+          .map((d) => ({
+            x: new Date(d.date).getTime() / 86400000,
+            y: Number(d.value),
+          }))
+          .filter((p) => !Number.isNaN(p.x));
+        if (points.length < 2)
+          return { preds: [], labels: ctx && ctx.labels ? ctx.labels : [] };
+        const { slope, intercept } = linearFit(points);
+        const preds = [];
+        const labels = ctx && ctx.labels ? ctx.labels : [];
+        // compute preds for each label date using same time units (days)
+        for (let i = 0; i < labels.length; i++) {
+          const tDays = new Date(labels[i]).getTime() / 86400000;
+          const y = intercept + slope * tDays;
+          preds.push(Number(y.toFixed(4)));
+        }
+        return { preds, labels, meta: { slope, intercept } };
+      },
+    },
+    {
+      id: "ma",
+      label: "Moving average",
+      checkboxId: "alg-ma",
+      compute: (data, horizon, ctx) => {
+        const values = data.map((d) => Number(d.value));
+        const window =
+          parseInt(document.getElementById("ma-window").value, 10) || 3;
+        const preds = computeMA(values, window, horizon);
+        return {
+          preds,
+          labels: ctx && ctx.labels ? ctx.labels : undefined,
+          meta: { window },
+        };
+      },
+    },
+    {
+      id: "naive",
+      label: "Flat (naive)",
+      checkboxId: "alg-naive",
+      compute: (data, horizon, ctx) => {
+        const values = data.map((d) => Number(d.value));
+        const preds = computeNaive(values, horizon);
+        return { preds, labels: ctx && ctx.labels ? ctx.labels : undefined };
+      },
+    },
+  ];
+  // Horizon slider wiring: update display live (moved into algorithms section)
+  (function wireHorizonSlider() {
+    const horizonSlider = document.getElementById("horizon");
+    const horizonValue = document.getElementById("horizon-value");
+    if (horizonSlider && horizonValue) {
+      horizonValue.textContent = horizonSlider.value;
+      horizonSlider.addEventListener("input", (e) => {
+        horizonValue.textContent = e.target.value;
+      });
+    }
+  })();
   function drawChart(data, forecastResult) {
     const ctx = chartCanvas.getContext("2d");
     if (chart) chart.destroy();
-    const actualLabels = data.map((d) => d.date);
-    const actualVals = data.map((d) => Number(d.value));
-    const forecastLabels = forecastResult.labels || [];
-    // format labels as MM-YY for the x axis
-    const labels = actualLabels
-      .map(formatMMYY)
-      .concat(forecastLabels.map(formatMMYY));
-    const forecastData = new Array(data.length)
-      .fill(null)
-      .concat(forecastResult.preds);
-    // build datasets: always include actuals
+
+    // Convert data points to {x: timestamp(ms), y: value}
+    const actualPoints = data
+      .map((d) => ({ x: new Date(d.date).getTime(), y: Number(d.value) }))
+      .filter((p) => !Number.isNaN(p.x));
+
+    // Helper to build forecast point arrays from forecastResult.labels and preds
+    function ptsFromForecast(forecast) {
+      if (!forecast || !forecast.preds) return [];
+      // allow per-algorithm labels, otherwise fall back to forecastResult.labels
+      const labels = forecast.labels || forecastResult.labels || [];
+      return labels.map((ld, i) => {
+        const t = new Date(ld).getTime();
+        return { x: t, y: Number(forecast.preds[i]) };
+      });
+    }
+
     const datasets = [
       {
         label: "Actual",
-        data: actualVals,
+        data: actualPoints,
         borderColor: "#2563eb",
         backgroundColor: "rgba(37,99,235,0.08)",
         tension: 0.2,
+        showLine: true,
+        pointRadius: 3,
       },
     ];
 
-    // helper to pad forecast arrays for chart alignment
-    function padForecast(arr) {
-      return new Array(data.length).fill(null).concat(arr);
-    }
-
-    // linear
     if (forecastResult.linear) {
       datasets.push({
         label: "Linear",
-        data: padForecast(forecastResult.linear.preds),
+        data: ptsFromForecast({
+          labels: forecastResult.labels,
+          preds: forecastResult.linear.preds,
+        }),
         borderColor: "#ef4444",
         borderDash: [6, 4],
         tension: 0.2,
+        pointRadius: 0,
       });
     }
-    // moving average
     if (forecastResult.ma) {
       datasets.push({
         label: `MA(${forecastResult.ma.window})`,
-        data: padForecast(forecastResult.ma.preds),
+        data: ptsFromForecast({
+          labels: forecastResult.labels,
+          preds: forecastResult.ma.preds,
+        }),
         borderColor: "#f59e0b",
         borderDash: [4, 2],
         tension: 0.2,
+        pointRadius: 0,
       });
     }
-    // naive
     if (forecastResult.naive) {
       datasets.push({
         label: "Naive",
-        data: padForecast(forecastResult.naive.preds),
+        data: ptsFromForecast({
+          labels: forecastResult.labels,
+          preds: forecastResult.naive.preds,
+        }),
         borderColor: "#7c3aed",
         borderDash: [3, 3],
         tension: 0.2,
+        pointRadius: 0,
       });
     }
 
     chart = new Chart(ctx, {
       type: "line",
-      data: { labels, datasets },
+      data: { datasets },
       options: {
+        parsing: false, // we provide {x,y} pairs
         interaction: { mode: "index", intersect: false },
-        scales: { x: { display: true }, y: { display: true } },
+        scales: {
+          x: {
+            type: "linear",
+            title: { display: true, text: "Date" },
+            ticks: {
+              callback: function (val) {
+                const n = Number(val);
+                if (Number.isNaN(n)) return "";
+                try {
+                  return formatMMYY(new Date(n).toISOString().slice(0, 10));
+                } catch (e) {
+                  return new Date(n).toLocaleDateString();
+                }
+              },
+            },
+          },
+          y: { display: true, title: { display: true, text: "Value" } },
+        },
       },
     });
   }
@@ -253,10 +337,14 @@ document.addEventListener("DOMContentLoaded", () => {
     if (chart) chart.destroy();
     chart = new Chart(ctx, {
       type: "line",
-      data: { labels: [], datasets: [] },
+      data: { datasets: [] },
       options: {
+        parsing: false,
         interaction: { mode: "index", intersect: false },
-        scales: { x: { display: true }, y: { display: true } },
+        scales: {
+          x: { type: "linear", title: { display: true, text: "Date" } },
+          y: { display: true },
+        },
       },
     });
   }
@@ -269,7 +357,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     // draw actuals only (no forecast yet)
-    const res = { labels: [], preds: [] };
+    const res = { labels: [], preds: [], linear: null, ma: null, naive: null };
     drawChart(data, res);
   }
 
@@ -365,6 +453,96 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Paste-import handlers
+  const pasteArea = document.getElementById("paste-area");
+  const importBtn = document.getElementById("import-btn");
+  const clearPasteBtn = document.getElementById("clear-paste");
+  const importFeedback = document.getElementById("import-feedback");
+  const pasteBtn = document.getElementById("paste-btn");
+  const modalPaste = document.getElementById("modal-paste");
+
+  function parsePasteText(text) {
+    const rows = [];
+    const lines = text
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    for (const line of lines) {
+      // allow separators: tab or multiple spaces
+      const parts = line.split(/\s+/);
+      if (parts.length < 2) continue;
+      let [datePart, valuePart] = parts;
+      // clean value (remove commas)
+      valuePart = valuePart.replace(/,/g, "");
+      const v = parseFloat(valuePart);
+      if (Number.isNaN(v)) continue;
+      // date can be YYYY-MM or YYYY-MM-DD; if YYYY-MM, set day=01
+      let iso = null;
+      // Accept YYYY-MM or YYYY-MM-DD
+      if (/^\d{4}-\d{2}$/.test(datePart)) {
+        iso = `${datePart}-01`;
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+        iso = datePart;
+      } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(datePart)) {
+        // allow DD/MM/YYYY -> convert to YYYY-MM-DD
+        const [dd, mm, yyyy] = datePart.split("/");
+        iso = `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+      } else {
+        // try Date parse fallback
+        const d = new Date(datePart);
+        if (!Number.isNaN(d.getTime())) {
+          iso = d.toISOString().slice(0, 10);
+        }
+      }
+      if (!iso) continue;
+      rows.push({ date: iso, value: v });
+    }
+    return rows;
+  }
+
+  if (importBtn && pasteArea) {
+    importBtn.addEventListener("click", () => {
+      importFeedback.textContent = "";
+      const text = pasteArea.value || "";
+      const parsed = parsePasteText(text);
+      if (!parsed.length) {
+        importFeedback.textContent = "No valid rows found.";
+        return;
+      }
+      // merge with existing data
+      const data = loadData();
+      for (const r of parsed) data.push(r);
+      // dedupe by date (keep last occurrence)
+      const byDate = {};
+      data.forEach((d) => (byDate[d.date] = d));
+      const merged = Object.values(byDate);
+      merged.sort((a, b) => new Date(a.date) - new Date(b.date));
+      saveData(merged);
+      renderTable();
+      importFeedback.style.color = "#080";
+      importFeedback.textContent = `Imported ${parsed.length} rows.`;
+    });
+  }
+
+  if (clearPasteBtn && pasteArea) {
+    clearPasteBtn.addEventListener("click", () => {
+      pasteArea.value = "";
+      if (importFeedback) importFeedback.textContent = "";
+    });
+  }
+
+  // Open paste modal when Paste button clicked
+  if (pasteBtn && modalPaste) {
+    pasteBtn.addEventListener("click", () => {
+      modalPaste.classList.remove("hidden");
+      if (pasteArea) {
+        pasteArea.focus();
+        pasteArea.select();
+      }
+      if (importFeedback) importFeedback.textContent = "";
+    });
+  }
+
   forecastBtn.addEventListener("click", () => {
     const data = loadData();
     if (data.length < 2) {
@@ -372,22 +550,28 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     const horizon = parseInt(horizonInput.value, 10) || 6;
-    const values = data.map((d) => Number(d.value));
-    const res = { labels: [], linear: null, ma: null, naive: null };
+
+    // canonical labels for forecast steps (use existing forecast helper to build labels)
     const base = forecast(horizon);
-    res.labels = base.labels;
-    if (algLinear.checked) res.linear = { preds: base.preds };
-    if (algMA.checked)
-      res.ma = {
-        window: parseInt(maWindowInput.value, 10) || 3,
-        preds: computeMA(
-          values,
-          parseInt(maWindowInput.value, 10) || 3,
-          horizon
-        ),
-      };
-    if (algNaive.checked) res.naive = { preds: computeNaive(values, horizon) };
-    // holt/log removed
+    const res = { labels: base.labels };
+
+    // iterate registry and compute each enabled algorithm
+    ALGORITHMS.forEach((alg) => {
+      const cb = document.getElementById(alg.checkboxId);
+      if (!cb || !cb.checked) return;
+      try {
+        const out = alg.compute(data, horizon, { labels: base.labels });
+        // validation: ensure preds length matches horizon
+        if (!out || !out.preds || out.preds.length !== horizon) {
+          console.warn(`Algorithm ${alg.id} returned invalid preds`);
+          return;
+        }
+        res[alg.id] = out;
+      } catch (err) {
+        console.error(`Error running algorithm ${alg.id}:`, err);
+      }
+    });
+
     forecastOutput.textContent = "";
     drawChart(data, res);
   });

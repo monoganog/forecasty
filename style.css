@@ -1,12 +1,11 @@
 html,
 body {
-  height: 100%;
-  margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+  margin: 0;
 }
 
-body {
-  background: #f9f9f9;
+h2 {
+  margin-top: 0px;
 }
 
 .container {
@@ -14,23 +13,21 @@ body {
   flex-direction: column;
   height: 100vh;
   width: 100vw;
-  background: #fff;
+  background: #f9f9fb;
   overflow: hidden;
 }
 
 .header {
-  height: 50px;
+  height: 30px;
   flex-shrink: 0;
-  background: #d0eaff;
-  border-bottom: 2px solid #000;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 12px;
+  padding: 20px;
   font-weight: 700;
 }
 .header-left {
-  font-size: 16px;
+  font-size: 36px;
 }
 .header-right {
   display: flex;
@@ -49,7 +46,6 @@ body {
 .footer {
   height: 0px;
   flex-shrink: 0;
-  background: #ffd0d0;
   border-top: 2px solid #000;
   display: flex;
   align-items: center;
@@ -65,15 +61,12 @@ body {
 
 .left-panel {
   width: 450px;
-  border-right: 2px solid #000;
   display: flex;
   flex-direction: column;
   position: relative;
 }
 .right-panel {
   flex: 1;
-  padding: 18px;
-  background: #f5f5f5;
   overflow: auto;
 }
 
@@ -84,25 +77,78 @@ body {
   overflow: hidden;
 }
 .card {
-  background: #fff;
+  background: #ffffff;
   border-radius: 6px;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
-  padding: 10px;
+  padding: 15px;
   margin: 10px;
-  border: 1px solid #ddd;
 }
 
 .data-panel {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* container doesn't scroll; inner .data-list will */
+}
+
+/* Fixed top area inside the data panel: title and add form stay visible */
+.data-fixed {
+  flex: 0 0 auto;
+  padding-bottom: 6px;
+}
+
+/* Scrollable list of added rows */
+.data-list {
+  flex: 1 1 auto;
   overflow-y: auto;
+}
+
+.data-list table {
+  margin: 0;
+}
+.data-list thead th {
+  position: sticky;
+  top: 0;
   background: #e8f4ff;
+  z-index: 2;
+}
+.paste-import {
+  margin: 8px 10px;
+}
+.paste-import textarea {
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 8px;
+  font-family: monospace;
+}
+.paste-import .btn {
+  background: #eee;
+  border: 1px solid #ccc;
+  .btn-blue {
+    background: #2563eb;
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.paste-import .btn-add {
+  margin-right: 6px;
 }
 .algorithms-panel {
-  height: 220px;
-  background: #f0e8ff;
+  height: 240px;
   margin-bottom: 100px;
 }
 .run-panel {
+  .data-actions .btn-blue {
+    margin-right: 8px;
+  }
   position: absolute;
   bottom: 10px;
   left: 0px;
@@ -111,7 +157,40 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #e8ffe8;
+}
+
+/* Algorithms table: two columns, label left, control right */
+.alg-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.alg-table td {
+  padding: 8px;
+  vertical-align: middle;
+}
+.alg-table .alg-input {
+  text-align: right;
+}
+.alg-table input.small-input {
+  width: 80px;
+}
+
+.horizon-title {
+  margin: 6px 0;
+  font-size: 14px;
+}
+.horizon-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.horizon-control input[type="range"] {
+  flex: 1;
+}
+.horizon-display {
+  min-width: 72px;
+  text-align: right;
+  font-weight: 600;
 }
 
 .row {
@@ -166,6 +245,7 @@ input[type="text"] {
   padding: 6px;
   border: 1px solid #ccc;
   border-radius: 4px;
+  width: 90%;
 }
 .btn-add {
   background: #10b981;
@@ -183,4 +263,6 @@ input[type="text"] {
   border-radius: 6px;
   cursor: pointer;
   font-weight: 700;
+  width: 100%;
+  height: 40px;
 }
