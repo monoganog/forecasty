@@ -1,6 +1,11 @@
 html,
 body {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    Arial;
   margin: 0;
 }
 
@@ -142,7 +147,7 @@ h2 {
   margin-right: 6px;
 }
 .algorithms-panel {
-  height: 240px;
+  height: 340px;
   margin-bottom: 100px;
 }
 .run-panel {
@@ -171,8 +176,18 @@ h2 {
 .alg-table .alg-input {
   text-align: right;
 }
+.alg-table .alg-input-group {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
 .alg-table input.small-input {
   width: 80px;
+}
+.alg-table input.tiny-input {
+  width: 52px;
+  padding: 4px;
+  font-size: 12px;
 }
 
 .horizon-title {

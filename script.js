@@ -220,6 +220,38 @@ document.addEventListener("DOMContentLoaded", () => {
         return { preds, labels: ctx && ctx.labels ? ctx.labels : undefined };
       },
     },
+    {
+      id: "holt-damped",
+      label: "Holt (damped)",
+      checkboxId: "alg-holt-damped",
+      compute: (data, horizon, ctx) => {
+        const values = data
+          .map((d) => Number(d.value))
+          .filter((v) => !Number.isNaN(v));
+        if (values.length < 2) {
+          return {
+            preds: [],
+            labels: ctx && ctx.labels ? ctx.labels : [],
+          };
+        }
+
+        const alphaRaw = parseFloat(
+          document.getElementById("holt-alpha")?.value,
+        );
+        const betaRaw = parseFloat(document.getElementById("holt-beta")?.value);
+        const phiRaw = parseFloat(document.getElementById("holt-phi")?.value);
+        const alpha = Number.isFinite(alphaRaw) ? alphaRaw : 0.3;
+        const beta = Number.isFinite(betaRaw) ? betaRaw : 0.1;
+        const phi = Number.isFinite(phiRaw) ? phiRaw : 0.98;
+
+        const preds = computeHoltDamped(values, alpha, beta, phi, horizon);
+        return {
+          preds,
+          labels: ctx && ctx.labels ? ctx.labels : undefined,
+          meta: { alpha, beta, phi },
+        };
+      },
+    },
   ];
   // Horizon slider wiring: update display live (moved into algorithms section)
   (function wireHorizonSlider() {
@@ -232,6 +264,15 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
   })();
+
+  function tooltipLabelCallback(context) {
+    const value = context.parsed.y;
+    if (!Number.isFinite(value)) {
+      return context.dataset.label || "";
+    }
+    return `${context.dataset.label}: ${Number(value).toFixed(0)}`;
+  }
+
   function drawChart(data, forecastResult) {
     const ctx = chartCanvas.getContext("2d");
     if (chart) chart.destroy();
@@ -279,7 +320,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (forecastResult.ma) {
       datasets.push({
-        label: `MA(${forecastResult.ma.window})`,
+        label: `Moving Average`,
         data: ptsFromForecast({
           labels: forecastResult.labels,
           preds: forecastResult.ma.preds,
@@ -303,6 +344,32 @@ document.addEventListener("DOMContentLoaded", () => {
         pointRadius: 0,
       });
     }
+    if (forecastResult["holt-damped"]) {
+      datasets.push({
+        label: "Holt (damped)",
+        data: ptsFromForecast({
+          labels: forecastResult.labels,
+          preds: forecastResult["holt-damped"].preds,
+        }),
+        borderColor: "#26dcc4",
+        borderDash: [8, 3],
+        tension: 0.2,
+        pointRadius: 0,
+      });
+    }
+    if (forecastResult["exp-log"]) {
+      datasets.push({
+        label: "Exponential (log-linear)",
+        data: ptsFromForecast({
+          labels: forecastResult.labels,
+          preds: forecastResult["exp-log"].preds,
+        }),
+        borderColor: "#0d9488",
+        borderDash: [2, 5],
+        tension: 0.2,
+        pointRadius: 0,
+      });
+    }
 
     chart = new Chart(ctx, {
       type: "line",
@@ -310,6 +377,17 @@ document.addEventListener("DOMContentLoaded", () => {
       options: {
         parsing: false, // we provide {x,y} pairs
         interaction: { mode: "index", intersect: false },
+        plugins: {
+          tooltip: {
+            titleColor: "transparent",
+            titleFont: { size: 0 },
+            titleMarginBottom: 0,
+            callbacks: {
+              title: () => "",
+              label: tooltipLabelCallback,
+            },
+          },
+        },
         scales: {
           x: {
             type: "linear",
@@ -341,6 +419,17 @@ document.addEventListener("DOMContentLoaded", () => {
       options: {
         parsing: false,
         interaction: { mode: "index", intersect: false },
+        plugins: {
+          tooltip: {
+            titleColor: "transparent",
+            titleFont: { size: 0 },
+            titleMarginBottom: 0,
+            callbacks: {
+              title: () => "",
+              label: tooltipLabelCallback,
+            },
+          },
+        },
         scales: {
           x: { type: "linear", title: { display: true, text: "Date" } },
           y: { display: true },
@@ -357,14 +446,22 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     // draw actuals only (no forecast yet)
-    const res = { labels: [], preds: [], linear: null, ma: null, naive: null };
+    const res = {
+      labels: [],
+      preds: [],
+      linear: null,
+      ma: null,
+      naive: null,
+      "holt-damped": null,
+      "exp-log": null,
+    };
     drawChart(data, res);
   }
 
   // algToggle may not exist (algorithms moved into left panel)
   if (algToggle && modalAlg) {
     algToggle.addEventListener("click", () =>
-      modalAlg.classList.remove("hidden")
+      modalAlg.classList.remove("hidden"),
     );
   }
 
@@ -381,7 +478,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const helpBtn = document.getElementById("help-btn");
   if (helpBtn && modalHelp)
     helpBtn.addEventListener("click", () =>
-      modalHelp.classList.remove("hidden")
+      modalHelp.classList.remove("hidden"),
     );
 
   function computeMA(values, window, steps) {
@@ -424,8 +521,40 @@ document.addEventListener("DOMContentLoaded", () => {
     return new Array(steps).fill(Number(last.toFixed ? last.toFixed(4) : last));
   }
 
-  // Holt's linear method (simple double exponential smoothing)
-  // (Holt and Log-linear implementations moved to modules)
+  // Damped Holt's linear trend.
+  function computeHoltDamped(values, alpha, beta, phi, steps) {
+    if (!values.length) return new Array(steps).fill(0);
+    if (values.length === 1) {
+      return new Array(steps).fill(Number(values[0].toFixed(4)));
+    }
+
+    const a = Number.isFinite(alpha)
+      ? Math.min(1, Math.max(0.001, alpha))
+      : 0.3;
+    const b = Number.isFinite(beta) ? Math.min(1, Math.max(0.001, beta)) : 0.1;
+    const p = Number.isFinite(phi) ? Math.min(1, Math.max(0.001, phi)) : 0.98;
+
+    let level = values[0];
+    let trend = values[1] - values[0];
+
+    for (let t = 1; t < values.length; t++) {
+      const y = values[t];
+      const prevLevel = level;
+      const prevTrend = trend;
+      level = a * y + (1 - a) * (prevLevel + p * prevTrend);
+      trend = b * (level - prevLevel) + (1 - b) * p * prevTrend;
+    }
+
+    const preds = [];
+    for (let h = 1; h <= steps; h++) {
+      const dampedTrendTerm =
+        Math.abs(1 - p) < 1e-10
+          ? h * trend
+          : ((p * (1 - p ** h)) / (1 - p)) * trend;
+      preds.push(Number((level + dampedTrendTerm).toFixed(4)));
+    }
+    return preds;
+  }
 
   // algApply/modal removed; algorithms are read directly from checkboxes on forecast
 
