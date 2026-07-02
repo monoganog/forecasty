@@ -273,6 +273,133 @@ document.addEventListener("DOMContentLoaded", () => {
     return `${context.dataset.label}: ${Number(value).toFixed(0)}`;
   }
 
+  function buildMonthlyTickValues(min, max) {
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max < min) return [];
+    const start = new Date(min);
+    const end = new Date(max);
+    const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+    const values = [];
+    values.push(start.getTime());
+    while (cursor.getTime() <= end.getTime()) {
+      if (cursor.getTime() > start.getTime()) values.push(cursor.getTime());
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    if (values[values.length - 1] !== end.getTime()) {
+      values.push(end.getTime());
+    }
+    return values;
+  }
+
+  function isStartOfYearTick(value) {
+    if (!Number.isFinite(value)) return false;
+    const date = new Date(value);
+    return date.getMonth() === 0;
+  }
+
+  function getFanConfig() {
+    const showFan = document.getElementById("show-fan")?.checked;
+    const modelId = document.getElementById("fan-model")?.value || "linear";
+    const widthRaw = parseFloat(document.getElementById("fan-width")?.value);
+    const widthPercent = Number.isFinite(widthRaw)
+      ? Math.min(50, Math.max(1, widthRaw))
+      : 5;
+    return { showFan: Boolean(showFan), modelId, widthPercent };
+  }
+
+  function buildFanDatasets(points, widthPercent, color, label) {
+    if (!points || points.length < 2) return [];
+    const forecastOnlyPoints = points.slice(1);
+    const lower = [points[0]].concat(
+      forecastOnlyPoints.map((point, index) => {
+        const stepScale =
+          1 + index / Math.max(1, forecastOnlyPoints.length - 1);
+        const width = (widthPercent / 100) * stepScale;
+        return { x: point.x, y: point.y * (1 - width) };
+      }),
+    );
+    const upper = [points[0]].concat(
+      forecastOnlyPoints.map((point, index) => {
+        const stepScale =
+          1 + index / Math.max(1, forecastOnlyPoints.length - 1);
+        const width = (widthPercent / 100) * stepScale;
+        return { x: point.x, y: point.y * (1 + width) };
+      }),
+    );
+
+    return [
+      {
+        label: `${label} fan lower`,
+        data: lower,
+        borderColor: "rgba(0,0,0,0)",
+        backgroundColor: "rgba(0,0,0,0)",
+        pointRadius: 0,
+        tension: 0.2,
+        fill: false,
+      },
+      {
+        label: `${label} fan`,
+        data: upper,
+        borderColor: "rgba(0,0,0,0)",
+        backgroundColor: color,
+        pointRadius: 0,
+        tension: 0.2,
+        fill: "-1",
+      },
+    ];
+  }
+
+  function buildCombinedFanDatasets(seriesMap, widthPercent, color, label) {
+    const seriesList = Object.values(seriesMap).filter(
+      (points) => Array.isArray(points) && points.length >= 2,
+    );
+    if (!seriesList.length) return [];
+
+    const minLength = Math.min(...seriesList.map((points) => points.length));
+    if (minLength < 2) return [];
+
+    const lower = [];
+    const upper = [];
+    for (let index = 0; index < minLength; index++) {
+      const x = seriesList[0][index].x;
+      const ys = seriesList
+        .map((points) => Number(points[index].y))
+        .filter((y) => Number.isFinite(y));
+      if (!ys.length) continue;
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      if (index === 0) {
+        lower.push({ x, y: minY });
+        upper.push({ x, y: maxY });
+        continue;
+      }
+      const stepScale = 1 + (index - 1) / Math.max(1, minLength - 2);
+      const width = (widthPercent / 100) * stepScale;
+      lower.push({ x, y: minY * (1 - width) });
+      upper.push({ x, y: maxY * (1 + width) });
+    }
+
+    return [
+      {
+        label: `${label} fan lower`,
+        data: lower,
+        borderColor: "rgba(0,0,0,0)",
+        backgroundColor: "rgba(0,0,0,0)",
+        pointRadius: 0,
+        tension: 0.2,
+        fill: false,
+      },
+      {
+        label: `${label} fan`,
+        data: upper,
+        borderColor: "rgba(0,0,0,0)",
+        backgroundColor: color,
+        pointRadius: 0,
+        tension: 0.2,
+        fill: "-1",
+      },
+    ];
+  }
+
   function drawChart(data, forecastResult) {
     const ctx = chartCanvas.getContext("2d");
     if (chart) chart.destroy();
@@ -287,11 +414,16 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!forecast || !forecast.preds) return [];
       // allow per-algorithm labels, otherwise fall back to forecastResult.labels
       const labels = forecast.labels || forecastResult.labels || [];
-      return labels.map((ld, i) => {
+      const forecastPoints = labels.map((ld, i) => {
         const t = new Date(ld).getTime();
         return { x: t, y: Number(forecast.preds[i]) };
       });
+      if (!forecastPoints.length || !actualPoints.length) return forecastPoints;
+      const anchorPoint = actualPoints[actualPoints.length - 1];
+      return [anchorPoint, ...forecastPoints];
     }
+
+    const forecastSeriesPoints = {};
 
     const datasets = [
       {
@@ -306,12 +438,13 @@ document.addEventListener("DOMContentLoaded", () => {
     ];
 
     if (forecastResult.linear) {
+      forecastSeriesPoints.linear = ptsFromForecast({
+        labels: forecastResult.labels,
+        preds: forecastResult.linear.preds,
+      });
       datasets.push({
         label: "Linear",
-        data: ptsFromForecast({
-          labels: forecastResult.labels,
-          preds: forecastResult.linear.preds,
-        }),
+        data: forecastSeriesPoints.linear,
         borderColor: "#ef4444",
         borderDash: [6, 4],
         tension: 0.2,
@@ -319,12 +452,13 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
     if (forecastResult.ma) {
+      forecastSeriesPoints.ma = ptsFromForecast({
+        labels: forecastResult.labels,
+        preds: forecastResult.ma.preds,
+      });
       datasets.push({
         label: `Moving Average`,
-        data: ptsFromForecast({
-          labels: forecastResult.labels,
-          preds: forecastResult.ma.preds,
-        }),
+        data: forecastSeriesPoints.ma,
         borderColor: "#f59e0b",
         borderDash: [4, 2],
         tension: 0.2,
@@ -332,12 +466,13 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
     if (forecastResult.naive) {
+      forecastSeriesPoints.naive = ptsFromForecast({
+        labels: forecastResult.labels,
+        preds: forecastResult.naive.preds,
+      });
       datasets.push({
         label: "Naive",
-        data: ptsFromForecast({
-          labels: forecastResult.labels,
-          preds: forecastResult.naive.preds,
-        }),
+        data: forecastSeriesPoints.naive,
         borderColor: "#7c3aed",
         borderDash: [3, 3],
         tension: 0.2,
@@ -345,12 +480,13 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
     if (forecastResult["holt-damped"]) {
+      forecastSeriesPoints["holt-damped"] = ptsFromForecast({
+        labels: forecastResult.labels,
+        preds: forecastResult["holt-damped"].preds,
+      });
       datasets.push({
         label: "Holt (damped)",
-        data: ptsFromForecast({
-          labels: forecastResult.labels,
-          preds: forecastResult["holt-damped"].preds,
-        }),
+        data: forecastSeriesPoints["holt-damped"],
         borderColor: "#26dcc4",
         borderDash: [8, 3],
         tension: 0.2,
@@ -358,18 +494,62 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
     if (forecastResult["exp-log"]) {
+      forecastSeriesPoints["exp-log"] = ptsFromForecast({
+        labels: forecastResult.labels,
+        preds: forecastResult["exp-log"].preds,
+      });
       datasets.push({
         label: "Exponential (log-linear)",
-        data: ptsFromForecast({
-          labels: forecastResult.labels,
-          preds: forecastResult["exp-log"].preds,
-        }),
+        data: forecastSeriesPoints["exp-log"],
         borderColor: "#0d9488",
         borderDash: [2, 5],
         tension: 0.2,
         pointRadius: 0,
       });
     }
+
+    const fanConfig = getFanConfig();
+    const fanColorMap = {
+      combined: "rgba(100, 116, 139, 0.16)",
+      linear: "rgba(239, 68, 68, 0.14)",
+      ma: "rgba(245, 158, 11, 0.14)",
+      naive: "rgba(124, 58, 237, 0.14)",
+      "holt-damped": "rgba(38, 220, 196, 0.14)",
+      "exp-log": "rgba(13, 148, 136, 0.14)",
+    };
+    const fanLabelMap = {
+      combined: "Combined",
+      linear: "Linear",
+      ma: "Moving Average",
+      naive: "Naive",
+      "holt-damped": "Holt (damped)",
+      "exp-log": "Exponential (log-linear)",
+    };
+    if (fanConfig.showFan) {
+      const fanDatasets =
+        fanConfig.modelId === "combined"
+          ? buildCombinedFanDatasets(
+              forecastSeriesPoints,
+              fanConfig.widthPercent,
+              fanColorMap.combined,
+              fanLabelMap.combined,
+            )
+          : forecastSeriesPoints[fanConfig.modelId]
+            ? buildFanDatasets(
+                forecastSeriesPoints[fanConfig.modelId],
+                fanConfig.widthPercent,
+                fanColorMap[fanConfig.modelId] || "rgba(37, 99, 235, 0.12)",
+                fanLabelMap[fanConfig.modelId] || "Forecast",
+              )
+            : [];
+      datasets.unshift(...fanDatasets);
+    }
+
+    const allX = datasets
+      .flatMap((ds) => (Array.isArray(ds.data) ? ds.data.map((p) => p.x) : []))
+      .filter((x) => Number.isFinite(x));
+    const xMin = allX.length ? Math.min(...allX) : undefined;
+    const xMax = allX.length ? Math.max(...allX) : undefined;
 
     chart = new Chart(ctx, {
       type: "line",
@@ -378,21 +558,55 @@ document.addEventListener("DOMContentLoaded", () => {
         parsing: false, // we provide {x,y} pairs
         interaction: { mode: "index", intersect: false },
         plugins: {
+          legend: {
+            labels: {
+              filter: function (legendItem, chartData) {
+                return !String(legendItem.text).includes(" fan");
+              },
+            },
+          },
           tooltip: {
             titleColor: "transparent",
             titleFont: { size: 0 },
             titleMarginBottom: 0,
             callbacks: {
               title: () => "",
-              label: tooltipLabelCallback,
+              label: function (context) {
+                if (String(context.dataset.label).includes(" fan")) return null;
+                return tooltipLabelCallback(context);
+              },
             },
           },
         },
         scales: {
           x: {
             type: "linear",
+            bounds: "data",
+            min: xMin,
+            max: xMax,
             title: { display: true, text: "Date" },
+            afterBuildTicks: function (axis) {
+              const values = buildMonthlyTickValues(axis.min, axis.max);
+              if (values.length) {
+                axis.ticks = values.map((v) => ({ value: v }));
+              }
+            },
+            grid: {
+              display: true,
+              drawOnChartArea: true,
+              color: function (context) {
+                return isStartOfYearTick(context.tick && context.tick.value)
+                  ? "rgba(15, 23, 42, 0.28)"
+                  : "rgba(15, 23, 42, 0.15)";
+              },
+              lineWidth: function (context) {
+                return isStartOfYearTick(context.tick && context.tick.value)
+                  ? 2
+                  : 1;
+              },
+            },
             ticks: {
+              autoSkip: false,
               callback: function (val) {
                 const n = Number(val);
                 if (Number.isNaN(n)) return "";
@@ -420,18 +634,63 @@ document.addEventListener("DOMContentLoaded", () => {
         parsing: false,
         interaction: { mode: "index", intersect: false },
         plugins: {
+          legend: {
+            labels: {
+              filter: function (legendItem, chartData) {
+                return !String(legendItem.text).includes(" fan");
+              },
+            },
+          },
           tooltip: {
             titleColor: "transparent",
             titleFont: { size: 0 },
             titleMarginBottom: 0,
             callbacks: {
               title: () => "",
-              label: tooltipLabelCallback,
+              label: function (context) {
+                if (String(context.dataset.label).includes(" fan")) return null;
+                return tooltipLabelCallback(context);
+              },
             },
           },
         },
         scales: {
-          x: { type: "linear", title: { display: true, text: "Date" } },
+          x: {
+            type: "linear",
+            title: { display: true, text: "Date" },
+            afterBuildTicks: function (axis) {
+              const values = buildMonthlyTickValues(axis.min, axis.max);
+              if (values.length) {
+                axis.ticks = values.map((v) => ({ value: v }));
+              }
+            },
+            grid: {
+              display: true,
+              drawOnChartArea: true,
+              color: function (context) {
+                return isStartOfYearTick(context.tick && context.tick.value)
+                  ? "rgba(15, 23, 42, 0.28)"
+                  : "rgba(15, 23, 42, 0.15)";
+              },
+              lineWidth: function (context) {
+                return isStartOfYearTick(context.tick && context.tick.value)
+                  ? 2
+                  : 1;
+              },
+            },
+            ticks: {
+              autoSkip: false,
+              callback: function (val) {
+                const n = Number(val);
+                if (Number.isNaN(n)) return "";
+                try {
+                  return formatMMYY(new Date(n).toISOString().slice(0, 10));
+                } catch (e) {
+                  return new Date(n).toLocaleDateString();
+                }
+              },
+            },
+          },
           y: { display: true },
         },
       },

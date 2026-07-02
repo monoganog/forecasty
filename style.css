@@ -147,7 +147,7 @@ h2 {
   margin-right: 6px;
 }
 .algorithms-panel {
-  height: 340px;
+  height: 395px;
   margin-bottom: 100px;
 }
 .run-panel {
@@ -181,13 +181,32 @@ h2 {
   justify-content: flex-end;
   gap: 6px;
 }
+.alg-table .param-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.alg-table .param-label {
+  font-size: 10px;
+  line-height: 1;
+  color: #334155;
+}
 .alg-table input.small-input {
   width: 80px;
 }
 .alg-table input.tiny-input {
-  width: 52px;
+  width: 58px;
   padding: 4px;
   font-size: 12px;
+}
+.alg-table select.fan-select {
+  width: 116px;
+  padding: 4px;
+  font-size: 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
 }
 
 .horizon-title {

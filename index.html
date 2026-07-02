@@ -132,38 +132,80 @@
                       >
                     </td>
                     <td class="alg-input alg-input-group">
+                      <div class="param-field">
+                        <label for="holt-alpha" class="param-label"
+                          >Alpha</label
+                        >
+                        <input
+                          id="holt-alpha"
+                          type="number"
+                          min="0.001"
+                          max="1"
+                          step="0.01"
+                          value="0.3"
+                          class="tiny-input"
+                          title="Alpha"
+                          aria-label="Holt alpha"
+                        />
+                      </div>
+                      <div class="param-field">
+                        <label for="holt-beta" class="param-label">Beta</label>
+                        <input
+                          id="holt-beta"
+                          type="number"
+                          min="0.001"
+                          max="1"
+                          step="0.01"
+                          value="0.1"
+                          class="tiny-input"
+                          title="Beta"
+                          aria-label="Holt beta"
+                        />
+                      </div>
+                      <div class="param-field">
+                        <label for="holt-phi" class="param-label">Phi</label>
+                        <input
+                          id="holt-phi"
+                          type="number"
+                          min="0.001"
+                          max="1"
+                          step="0.01"
+                          value="0.98"
+                          class="tiny-input"
+                          title="Phi"
+                          aria-label="Holt damping"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <label for="show-fan"
+                        ><input type="checkbox" id="show-fan" /> Show fan</label
+                      >
+                    </td>
+                    <td class="alg-input alg-input-group">
+                      <select
+                        id="fan-model"
+                        class="fan-select"
+                        aria-label="Fan model"
+                      >
+                        <option value="combined">Combined</option>
+                        <option value="linear">Linear</option>
+                        <option value="ma">Moving average</option>
+                        <option value="naive">Flat</option>
+                        <option value="holt-damped">Holt</option>
+                      </select>
                       <input
-                        id="holt-alpha"
+                        id="fan-width"
                         type="number"
-                        min="0.001"
-                        max="1"
-                        step="0.01"
-                        value="0.3"
+                        min="1"
+                        max="50"
+                        step="1"
+                        value="5"
                         class="tiny-input"
-                        title="Alpha"
-                        aria-label="Holt alpha"
-                      />
-                      <input
-                        id="holt-beta"
-                        type="number"
-                        min="0.001"
-                        max="1"
-                        step="0.01"
-                        value="0.1"
-                        class="tiny-input"
-                        title="Beta"
-                        aria-label="Holt beta"
-                      />
-                      <input
-                        id="holt-phi"
-                        type="number"
-                        min="0.001"
-                        max="1"
-                        step="0.01"
-                        value="0.98"
-                        class="tiny-input"
-                        title="Phi"
-                        aria-label="Holt damping"
+                        title="Fan width percent"
+                        aria-label="Fan width percent"
                       />
                     </td>
                   </tr>
@@ -175,7 +217,7 @@
                           id="horizon"
                           type="range"
                           min="1"
-                          max="36"
+                          max="48"
                           value="12"
                         />
                         <div class="horizon-display">
